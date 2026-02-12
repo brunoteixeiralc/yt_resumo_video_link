@@ -5,9 +5,9 @@
 // Youtube Summarizer Widget
 // This script interacts with the local python server running on localhost:5000
 
-const SERVER_URL = "http://localhost:5001/summarize";
+const SERVER_URL = "https://roseline-smelly-bloodlessly.ngrok-free.dev/summarize";
 
-async function createWidget() {
+async function createWidget(inputUrl) {
     const widget = new ListWidget();
     widget.backgroundColor = new Color("#1c1c1e");
 
@@ -17,8 +17,8 @@ async function createWidget() {
     titleTxt.textColor = new Color("#ff0000");
     widget.addSpacer(8);
 
-    // Get URL from Clipboard
-    const url = Pasteboard.paste();
+    // Get URL
+    const url = inputUrl;
 
     if (!url || !url.includes("youtube.com") && !url.includes("youtu.be")) {
         const errorTxt = widget.addText("⚠️ Copie um link do YouTube primeiro.");
@@ -66,11 +66,25 @@ async function createWidget() {
 }
 
 if (config.runsInWidget) {
-    const widget = await createWidget();
+    // Widget Mode: Use Clipboard silently
+    const widget = await createWidget(Pasteboard.paste());
     Script.setWidget(widget);
 } else {
-    const widget = await createWidget();
-    widget.presentLarge();
+    // App Mode: Ask for URL
+    const alert = new Alert();
+    alert.title = "YouTube Resumo";
+    alert.message = "Cole o link do vídeo abaixo:";
+    alert.addTextField(Pasteboard.paste() || "https://youtu.be/...");
+    alert.addAction("Resumir");
+    alert.addCancelAction("Cancelar");
+
+    const idx = await alert.present();
+
+    if (idx === 0) {
+        const url = alert.textFieldValue(0);
+        const widget = await createWidget(url);
+        await widget.presentLarge();
+    }
 }
 
 Script.complete();
