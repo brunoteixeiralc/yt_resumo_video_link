@@ -13,3 +13,6 @@ env/
 # IDE
 .vscode/
 .idea/
+
+# Local Only Scripts
+run_keep_alive.sh
