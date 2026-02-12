@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Summarizer Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f4f4f5;
+            color: #18181b;
+        }
+
+        h1 {
+            color: #ef4444;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #d4d4d8;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #dc2626;
+        }
+
+        button:disabled {
+            background-color: #fca5a5;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .loading {
+            color: #71717a;
+            font-style: italic;
+        }
+
+        .error {
+            color: #dc2626;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📺 YouTube Resumo (Teste)</h1>
+        <div class="input-group">
+            <input type="text" id="urlInput"
+                placeholder="Cole o link do YouTube aqui (ex: https://www.youtube.com/watch?v=...)" />
+            <button id="summarizeBtn" onclick="summarize()">Resumir</button>
+        </div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function summarize() {
+            const url = document.getElementById('urlInput').value;
+            const btn = document.getElementById('summarizeBtn');
+            const resultDiv = document.getElementById('result');
+
+            if (!url) {
+                alert('Por favor, insira uma URL.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "Processando...";
+            resultDiv.innerHTML = '<span class="loading">Gerando resumo... (isso pode levar alguns segundos)</span>';
+            resultDiv.className = '';
+
+            try {
+                const response = await fetch('/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Use marked.js to render Markdown
+                    resultDiv.innerHTML = marked.parse(data.summary);
+                } else {
+                    resultDiv.textContent = "Erro: " + (data.error || "Erro desconhecido");
+                    resultDiv.className = 'error';
+                }
+            } catch (e) {
+                resultDiv.textContent = "Erro de conexão: " + e.message;
+                resultDiv.className = 'error';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Resumir";
+            }
+        }
+    </script>
+</body>
+
+</html>
