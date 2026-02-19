@@ -81,8 +81,11 @@ def index():
 @app.route('/summarize', methods=['POST'])
 def summarize_endpoint():
     data = request.json
+    if not data:
+        return jsonify({"error": "Invalid request: JSON body expected"}), 400
+
     url = data.get('url')
-    
+
     if not url:
         return jsonify({"error": "No URL provided"}), 400
         
