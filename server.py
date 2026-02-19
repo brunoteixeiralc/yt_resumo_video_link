@@ -1,9 +1,17 @@
 import os
 from flask import Flask, request, jsonify, render_template
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from youtube_transcript_api import YouTubeTranscriptApi
 import google.generativeai as genai
 
 app = Flask(__name__)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+)
 
 # --- CONFIGURATION ---
 # Please set your GEMINI API KEY in the environment variable 'GEMINI_API_KEY'
@@ -13,9 +21,11 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     print("WARNING: GEMINI_API_KEY not found in environment variables.")
 
-# Configure Gemini
+# Configure Gemini and instantiate model once at module level
+gemini_model = None
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-2.5-flash')
 
 
 def get_video_id(url):
@@ -55,11 +65,10 @@ def fetch_transcript(video_id):
         return None
 
 def summarize_text(text):
-    if not GEMINI_API_KEY:
+    if not gemini_model:
         return "Error: API Key missing on server."
-        
+
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
         # Updated prompt to explicitly handle translation if input is English
         prompt = (
             "Analyze the following YouTube video transcript (which may be in Portuguese or English). "
@@ -68,8 +77,8 @@ def summarize_text(text):
             "Ensure the output is entirely in Portuguese, even if the source is English.\n\n"
             f"Transcript Text: \n\n{text}"
         )
-        
-        response = model.generate_content(prompt)
+
+        response = gemini_model.generate_content(prompt)
         return response.text
     except Exception as e:
         return f"Error summarizing: {e}"
@@ -79,10 +88,14 @@ def index():
     return render_template('index.html')
 
 @app.route('/summarize', methods=['POST'])
+@limiter.limit("10 per minute")
 def summarize_endpoint():
     data = request.json
+    if not data:
+        return jsonify({"error": "Invalid request: JSON body expected"}), 400
+
     url = data.get('url')
-    
+
     if not url:
         return jsonify({"error": "No URL provided"}), 400
         
@@ -90,7 +103,7 @@ def summarize_endpoint():
     if not video_id:
         return jsonify({"error": "Invalid YouTube URL"}), 400
         
-    print(f"Processing URL: {url} (ID: {video_id})")
+    print(f"Processing video ID: {video_id}")
     
     transcript = fetch_transcript(video_id)
     if not transcript:

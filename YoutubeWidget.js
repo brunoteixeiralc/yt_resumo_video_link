@@ -105,6 +105,9 @@ async function handleAppInteraction() {
 }
 
 async function showSummaryWebView(url) {
+    // Encode the URL to prevent XSS via string interpolation into the HTML template
+    const encodedUrl = encodeURIComponent(url);
+
     // Create HTML for the WebView
     // We inject a script to fetch the summary cleanly
     const html = `
@@ -121,6 +124,7 @@ async function showSummaryWebView(url) {
             pre { background: #eee; padding: 10px; overflow-x: scroll; }
         </style>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
     </head>
     <body>
         <div class="card">
@@ -133,22 +137,24 @@ async function showSummaryWebView(url) {
 
         <script>
             async function fetchSummary() {
+                // Decode the URL that was safely encoded before injection into this template
+                const videoUrl = decodeURIComponent("${encodedUrl}");
                 try {
                     const response = await fetch("${SERVER_URL}", {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: "${url}" })
+                        body: JSON.stringify({ url: videoUrl })
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.error) {
-                         document.getElementById('status').innerHTML = "❌ Erro: " + data.error;
+                         document.getElementById('status').textContent = "❌ Erro: " + data.error;
                          document.getElementById('status').style.color = "red";
                     } else {
                         document.getElementById('status').style.display = 'none';
                         document.getElementById('result').style.display = 'block';
-                        document.getElementById('content').innerHTML = marked.parse(data.summary);
+                        document.getElementById('content').innerHTML = DOMPurify.sanitize(marked.parse(data.summary));
                     }
                 } catch (e) {
                     document.getElementById('status').innerHTML = "❌ Falha na conexão. <br><br>Verifique se o servidor Python e o Ngrok estão rodando.";
