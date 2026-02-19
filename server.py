@@ -35,14 +35,14 @@ def fetch_transcript(video_id):
         
         # Find transcript: priority PT, then EN, then auto-generated
         try:
-             # We prioritize explicit Portuguese, then English. 
+             # We prioritize explicit Portuguese, then English.
              # The existing find_transcript logic respects the order.
              transcript = transcript_list.find_transcript(['pt-BR', 'en'])
              print(f"Transcript found! Language: {transcript.language_code}")
-        except:
-             # If exact match fails, try generic find (might pick auto-generated)
-             # or just take the first one available
-             transcript = transcript_list.find_transcript(['pt-BR', 'en'])
+        except Exception:
+             # If priority languages not found, fall back to the first available transcript
+             transcript = next(iter(transcript_list))
+             print(f"Fallback transcript used. Language: {transcript.language_code}")
 
         fetched = transcript.fetch()
         
@@ -106,4 +106,5 @@ def summarize_endpoint():
     return jsonify({"summary": summary})
 
 if __name__ == '__main__':
-    app.run(port=5001, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(port=5001, debug=debug_mode)
